@@ -230,62 +230,130 @@ label.var:hover{
     </div>
   </div>
 
-  <script>
-    // Coefficients (binary vars use checkbox; meld_xi uses numeric input)
-   const MODELS = {
-     "1y"; {
-     name: "1-year mortality",
-       model: [
-  { key: "CENTER_VOL_5",        label: "Center volume 2–4 transplants/year",                          coef:  3.201134439, type: "binary" },
-  { key: "CENTER_VOL_12",       label: "Center volume ≥12 transplants/year",                           coef: -2.270437723, type: "binary" },
+ <script>
+/* ============================
+   C-HART risk calculators
+   Tabs: 90-day, 1-year, 3-year
+   ============================ */
 
-  { key: "age1",                label: "Recipient age <2 years",                                       coef:  3.735670653, type: "binary" },
-  { key: "age11_13",            label: "Recipient age 11–13 years",                                    coef: -6.347318681, type: "binary" },
-  { key: "age5_6",              label: "Recipient age 5–6 years",                                      coef:  5.649489698, type: "binary" },
+// ---- MODELS (use your 1y descriptors exactly as provided) ----
+const MODELS = {
+  "1y": {
+    title: "1-year mortality risk",
+    model: [
+      { key: "CENTER_VOL_5",        label: "Center volume 2–4 transplants/year", coef:  3.201134439, type: "binary" },
+      { key: "CENTER_VOL_12",       label: "Center volume ≥12 transplants/year", coef: -2.270437723, type: "binary" },
+      { key: "age1",                label: "Recipient age <2 years", coef:  3.735670653, type: "binary" },
+      { key: "age11_13",            label: "Recipient age 11–13 years", coef: -6.347318681, type: "binary" },
+      { key: "age5_6",              label: "Recipient age 5–6 years", coef:  5.649489698, type: "binary" },
+      { key: "dage22plus",          label: "Donor age ≥22 years", coef:  4.376786359, type: "binary" },
+      { key: "cod_999",             label: "Donor cause of death code = 999 (other/unknown)", coef:  5.253360367, type: "binary" },
+      { key: "HGT_RATIO_HIGH",      label: "Donor/recipient height ratio >1.3", coef:  3.558994433, type: "binary" },
+      { key: "DIAG_nosurg_CHD",     label: "Recipient has Congenital heart disease w/o past history of surgery (non-surgical)", coef:  6.441370672, type: "binary" },
+      { key: "DIAG_surg_CHD",       label: "Recipient has Congenital heart disease w/ past history of surgery (surgical)", coef: 12.0072624, type: "binary" },
+      { key: "medicaid",            label: "Recipient on Medicaid insurance", coef:  4.43259163, type: "binary" },
+      { key: "IV_THERAPY_INF",      label: "Recipient has infection requiring IV therapy in past 2 weeks", coef:  2.97083738, type: "binary" },
+      { key: "hawai_pac_ind_alask", label: "Recipient is Native Hawaiian/Pacific Islander or American Indian/Alaska Native", coef:  8.335493527, type: "binary" },
+      { key: "vad_3_4",             label: "Recipient has BiVAD or TAH (Total artificial Heart)  ⚑FLAG: verify mapping", coef:  6.824203533, type: "binary" },
+      { key: "y_ventilator",        label: "Recipient on mechanical ventilation at transplant", coef:  3.564940276, type: "binary" },
+      { key: "y_ecmo",              label: "Recipient on ECMO at transplant  ⚑FLAG: your label says donor, should be recipient", coef:  8.121272772, type: "binary" },
+      { key: "meld_xi",             label: "MELD-XI (numeric)", coef:  0.397523026, type: "numeric" },
+      { key: "y_steroids",          label: "Recipient on chronic steroids use at time of transplant", coef:  3.975485211, type: "binary" },
+      { key: "hispanic",            label: "Recipient is of Hispanic ethnicity", coef: -3.887255496, type: "binary" },
+      { key: "lt3_albumin",         label: "Recipient Albumin ≤3 g/dL", coef:  2.570872888, type: "binary" },
+      { key: "eGFR_TRR_LE55",       label: "Recipient eGFR ≤55 mL/min/1.73m²", coef:  7.554048212, type: "binary" },
+      { key: "INHALED_NO_TRR",      label: "Recipient on Life Support: Inhaled nitric oxide (INHALED_NO_TRR)", coef: 11.32158922, type: "binary" }
+    ],
+    categorize: (s) => {
+      if (s <= 13) return "Low";
+      if (s <= 18) return "Moderate";
+      if (s <= 31) return "High ⚠️";
+      return "Very High 🚩";
+    }
+  },
 
-  { key: "dage22plus",          label: "Donor age ≥22 years",                                          coef:  4.376786359, type: "binary" },
+  "90d": {
+    title: "90-day mortality risk",
+    model: [
+      { key: "CENTER_VOL_5",      label: "Center volume 2–4 transplants/year", coef:  4.611508084, type: "binary" },
+      { key: "age11_13",          label: "Recipient age 11–13 years", coef: -10.8200122, type: "binary" },
+      { key: "age5_6",            label: "Recipient age 5–6 years", coef:  5.06740491, type: "binary" },
+      { key: "HGT_RATIO_HIGH",    label: "Donor/recipient height ratio >1.3", coef:  5.210959034, type: "binary" },
+      { key: "DIAG_nosurg_CHD",   label: "Recipient has Congenital heart disease w/o past history of surgery", coef:  9.527896674, type: "binary" },
+      { key: "DIAG_surg_CHD",     label: "Recipient has Congenital heart disease w/ past history of surgery", coef: 12.58257844, type: "binary" },
+      { key: "IV_THERAPY_INF",    label: "Infection requiring IV therapy in past 2 weeks ", coef:  4.251298174, type: "binary" },
+      { key: "vad_5",             label: "Other/unspecified VAD support at transplant", coef:  8.280158661, type: "binary" },
+      { key: "y_ecmo",            label: "Recipient on ECMO at transplant", coef: 12.08404072, type: "binary" },
+      { key: "meld_xi",           label: "MELD-XI (numeric)", coef:  0.8175508687, type: "numeric" },
+      { key: "y_steroids",        label: "Chronic steroid use at transplant", coef:  5.18094144, type: "binary" },
+      { key: "cmv_pos",           label: "Recipient is CMV+", coef:  3.18028186, type: "binary" },
+      { key: "eGFR_TRR_LE55",     label: "Recipient eGFR ≤55 mL/min/1.73m²", coef:  8.720813399, type: "binary" },
+      { key: "INHALED_NO_TRR",    label: "Inhaled nitric oxide at transplant", coef:  8.734116229, type: "binary" },
+      { key: "N_RHCROSS",         label: "Rh crossmatch not done", coef:  6.919069117, type: "binary" }
+    ],
+    categorize: (s) => {
+      if (s <= 16) return "Low";
+      if (s <= 25) return "Moderate";
+      if (s <= 44) return "High ⚠️";
+      return "Very High 🚩";
+    }
+  },
 
-  { key: "cod_999",             label: "Donor cause of death code = 999 (other/unknown)",             coef:  5.253360367, type: "binary" },
+  "3y": {
+    title: "3-year mortality risk",
+    model: [
+      { key: "CENTER_VOL_2",        label: "Center volume <2 transplants/year", coef:  3.862068526, type: "binary" },
+      { key: "age1",                label: "Recipient age <2 years", coef:  5.339527189, type: "binary" },
+      { key: "age5_6",              label: "Recipient age 4-6 (over 4, including 6)", coef:  5.24349759, type: "binary" },
+      { key: "age14_17",            label: "Recipient age 13–17 years (over 13, including 17)", coef:  4.731412019, type: "binary" },
+      { key: "dage22plus",          label: "Donor age ≥22 years", coef:  4.11471699, type: "binary" },
+      { key: "DON_Black",           label: "Donor race: Black", coef:  2.357699024, type: "binary" },
+      { key: "TCR_Black",           label: "Recipient race: Black", coef:  3.61912305, type: "binary" },
+      { key: "DONOR_MALE",          label: "Donor sex: male", coef:  2.43528754, type: "binary" },
+      { key: "HGT_RATIO_HIGH",      label: "Donor/recipient height ratio >1.3", coef:  3.014784631, type: "binary" },
+      { key: "DIAG_nosurg_CHD",     label: "Recipient has Congenital heart disease w/o past history of surgery", coef:  4.839250254, type: "binary" },
+      { key: "DIAG_surg_CHD",       label: "Recipient has Congenital heart disease w/o past history of surgery", coef:  9.078233849, type: "binary" },
+      { key: "medicaid",            label: "Recipient on Medicaid insurance", coef:  4.086187967, type: "binary" },
+      { key: "IV_THERAPY_INF",      label: "Infection requiring IV therapy in past 2 weeks", coef:  3.369871041, type: "binary" },
+      { key: "hawai_pac_ind_alask", label: "Recipient is Native Hawaiian/Pacific Islander or American Indian/Alaska Native", coef:  9.625760472, type: "binary" },
+      { key: "vad_3_4",             label: "BiVAD or TAH (Total artificial heart)", coef:  7.266375644, type: "binary" },
+      { key: "transfusion_TRR",     label: "Recipient received a transfusion between time of listing and time of transplant", coef:  2.013019507, type: "binary" },
+      { key: "y_ecmo",              label: "Recipient on ECMO at transplant", coef:  5.822357314, type: "binary" },
+      { key: "meld_xi",             label: "MELD-XI (numeric)", coef:  0.3292013691, type: "numeric" },
+      { key: "y_steroids",          label: "Chronic steroid use at transplant", coef:  4.822662599, type: "binary" },
+      { key: "b_blood",             label: "Recipient blood type B", coef: -2.876671392, type: "binary" },
+      { key: "cod_anoxia",          label: "Donor cause of death: anoxia", coef:  2.159545724, type: "binary" },
+      { key: "eGFR_TRR_LE55",       label: "Recipient eGFR ≤55 mL/min/1.73m²", coef:  6.502694286, type: "binary" },
+      { key: "INHALED_NO_TRR",      label: "Inhaled nitric oxide at transplant", coef: 10.6654526, type: "binary" },
+      { key: "N_RHCROSS",           label: "Rh crossmatch not done", coef:  4.091961391, type: "binary" }
+    ],
+    categorize: (s) => {
+      if (s <= 15) return "Low";
+      if (s <= 26) return "Moderate";
+      if (s <= 32) return "High ⚠️";
+      return "Very High 🚩";
+    }
+  }
+};
 
-  { key: "HGT_RATIO_HIGH",      label: "Donor/recipient height ratio >1.3",                            coef:  3.558994433, type: "binary" },
-
-  { key: "DIAG_nosurg_CHD",     label: "Recipient has Congenital heart disease w/o past history of surgery (non-surgical)",                     coef:  6.441370672, type: "binary" },
-  { key: "DIAG_surg_CHD",       label: "Recipient has Congenital heart disease w/ past history of surgery (surgical)",                         coef: 12.0072624,   type: "binary" },
-
-  { key: "medicaid",            label: "Recipient on Medicaid insurance",                                           coef:  4.43259163,  type: "binary" },
-
-  { key: "IV_THERAPY_INF",      label: "Recipient has infection requiring IV therapy in past 2 weeks",                                    coef:  2.97083738,  type: "binary" },
-
-  { key: "hawai_pac_ind_alask", label: "Recipient is Native Hawaiian/Pacific Islander or American Indian/Alaska Native", coef: 8.335493527, type: "binary" },
-
-  { key: "vad_3_4",             label: "Recipient on Novacor or Heartmate VAD",                             coef:  6.824203533, type: "binary" },
-
-  { key: "y_ventilator",        label: "Recipient on mechanical ventilation at transplant",                         coef:  3.564940276, type: "binary" },
-
-  { key: "y_ecmo",              label: "Donor on ECMO at transplant",                                           coef:  8.121272772, type: "binary" },
-
-  { key: "meld_xi",             label: "MELD-XI (numeric)",                                            coef:  0.397523026, type: "numeric" },
-
-  { key: "y_steroids",          label: "Recipient on chronic steroids use at time of transplant",                                          coef:  3.975485211, type: "binary" },
-
-  { key: "hispanic",            label: "Recipient is of Hispanic ethnicity",                                           coef: -3.887255496, type: "binary" },
-
-  { key: "lt3_albumin",         label: "Recipient Albumin ≤3 g/dL",                                              coef:  2.570872888, type: "binary" },
-
-  { key: "eGFR_TRR_LE55",       label: "Recipient eGFR ≤55 mL/min/1.73m²",                                       coef:  7.554048212, type: "binary" },
-
-  { key: "INHALED_NO_TRR",      label: "Recipient on Life Support: Inhaled nitric oxide (INHALED_NO_TRR)",                        coef: 11.32158922,  type: "binary" }
-];
-    const varsDiv = document.getElementById("vars");
-    const scoreOut = document.getElementById("scoreOut");
-    const catOut = document.getElementById("catOut");
-    const formulaOut = document.getElementById("formulaOut");
-    const meldInput = document.getElementById("meld_xi");
+// ---- ACTIVE MODEL ----
 let ACTIVE_KEY = "1y";
 let MODEL = MODELS[ACTIVE_KEY].model;
-    // Build checkbox UI
+
+// ---- DOM refs ----
+const varsDiv = document.getElementById("vars");
+const scoreOut = document.getElementById("scoreOut");
+const catOut = document.getElementById("catOut");
+const formulaOut = document.getElementById("formulaOut");
+const meldInput = document.getElementById("meld_xi");
+
+// If you add id="riskTitle" to the pill, this will auto-update the pill title on tab switch.
+const riskTitleEl = document.getElementById("riskTitle");
+
+// ---- UI builders ----
 function buildUI() {
   varsDiv.innerHTML = "";
+
   MODEL.filter(v => v.type === "binary").forEach(v => {
     const id = `chk_${v.key}`;
     const row = document.createElement("label");
@@ -302,89 +370,91 @@ function buildUI() {
 
     varsDiv.appendChild(row);
   });
+
   formulaOut.textContent = writtenFormula();
 }
 
-    function writtenFormula() {
-      // Single-line formula using variable names
-      const terms = MODEL.map(v => {
-        const sign = v.coef < 0 ? " − " : " + ";
-        const mag = Math.abs(v.coef);
-        return `${sign}${mag}*(${v.key})`;
-      });
-      // Remove leading " + "
-      return ("1-year mortality risk =" + terms.join("")).replace("1-year mortality risk = + ", "1-year mortality risk = ");
-    }
-
-    function getBinaryValue(key) {
-      const el = document.getElementById(`chk_${key}`);
-      return el && el.checked ? 1 : 0;
-    }
-
-    function calcCategory(score) {
-      if (score <= 13) return "Low";
-      if (score > 13 && score <= 18) return "Moderate";
-      if (score > 18 && score <= 31) return "High ⚠️";
-      return "Very High 🚩";
-    }
-
-    function calculate() {
-      const meld = Number(meldInput.value);
-      if (!Number.isFinite(meld)) {
-        alert("Please enter a valid numeric meld_xi value.");
-        return;
-      }
-
-      let score = 0;
-      for (const v of MODEL) {
-        if (v.type === "binary") score += v.coef * getBinaryValue(v.key);
-        else score += v.coef * meld;
-      }
-
-      // Format outputs
-      scoreOut.textContent = score.toFixed(3);
-      catOut.textContent = calcCategory(score);
-    }
-
-    function resetAll() {
-      MODEL.filter(v => v.type === "binary").forEach(v => {
-        const el = document.getElementById(`chk_${v.key}`);
-        if (el) el.checked = false;
-      });
-      meldInput.value = "";
-      scoreOut.textContent = "—";
-      catOut.textContent = "—";
-    }
-
-    document.getElementById("calcBtn").addEventListener("click", calculate);
-    document.getElementById("resetBtn").addEventListener("click", resetAll);
-function openKM() {
-  document.getElementById("kmModal").style.display = "flex";
+function writtenFormula() {
+  const title = MODELS[ACTIVE_KEY].title;
+  const terms = MODEL.map(v => {
+    const sign = v.coef < 0 ? " − " : " + ";
+    const mag = Math.abs(v.coef);
+    return `${sign}${mag}*(${v.key})`;
+  });
+  return (`${title} =` + terms.join("")).replace(`${title} = + `, `${title} = `);
 }
 
-function closeKM() {
-  document.getElementById("kmModal").style.display = "none";
+function getBinaryValue(key) {
+  const el = document.getElementById(`chk_${key}`);
+  return el && el.checked ? 1 : 0;
 }
 
-// Optional: close with ESC key
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape") closeKM();
-});
+function calculate() {
+  const meld = Number(meldInput.value);
+  if (!Number.isFinite(meld)) {
+    alert("Please enter a valid numeric meld_xi value.");
+    return;
+  }
+
+  let score = 0;
+  for (const v of MODEL) {
+    if (v.type === "binary") score += v.coef * getBinaryValue(v.key);
+    else score += v.coef * meld;
+  }
+
+  scoreOut.textContent = score.toFixed(3);
+  catOut.textContent = MODELS[ACTIVE_KEY].categorize(score);
+}
+
+function resetAll() {
+  MODEL.filter(v => v.type === "binary").forEach(v => {
+    const el = document.getElementById(`chk_${v.key}`);
+    if (el) el.checked = false;
+  });
+  meldInput.value = "";
+  scoreOut.textContent = "—";
+  catOut.textContent = "—";
+}
+
+// ---- Tabs ----
 function setModel(key) {
   ACTIVE_KEY = key;
   MODEL = MODELS[ACTIVE_KEY].model;
 
-  // tab UI
   document.querySelectorAll(".tab").forEach(btn => btn.classList.remove("active"));
   const tabId = key === "1y" ? "tab-1y" : key === "90d" ? "tab-90d" : "tab-3y";
-  document.getElementById(tabId).classList.add("active");
+  const tabEl = document.getElementById(tabId);
+  if (tabEl) tabEl.classList.add("active");
 
-  // reset outputs + rebuild UI
+  if (riskTitleEl) riskTitleEl.textContent = MODELS[ACTIVE_KEY].title;
+
   scoreOut.textContent = "—";
   catOut.textContent = "—";
   buildUI();
 }
-    buildUI();
-  </script>
+
+// ---- KM Modal ----
+function openKM() {
+  const m = document.getElementById("kmModal");
+  if (m) m.style.display = "flex";
+}
+
+function closeKM() {
+  const m = document.getElementById("kmModal");
+  if (m) m.style.display = "none";
+}
+
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeKM();
+});
+
+// ---- Wire up buttons ----
+document.getElementById("calcBtn").addEventListener("click", calculate);
+document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+// ---- Initial render ----
+buildUI();
+</script>
+
 </body>
 </html>
