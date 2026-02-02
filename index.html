@@ -126,6 +126,30 @@ label.var:hover{
   box-shadow: 0 0 40px rgba(0,0,0,0.6);
   cursor: zoom-out;
 }
+    .tabs{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin: 10px 0 16px;
+}
+.tab{
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(34,48,95,0.9);
+  background: rgba(10,14,30,0.35);
+  color: var(--muted);
+  cursor:pointer;
+  font-weight: 650;
+}
+.tab:hover{
+  border-color: var(--pink);
+  box-shadow: 0 0 0 2px rgba(243,182,200,0.18);
+}
+.tab.active{
+  color: var(--text);
+  border-color: rgba(122,162,255,0.85);
+  background: rgba(122,162,255,0.18);
+}
   </style>
 </head>
 <div id="kmModal" class="km-modal" onclick="closeKM()">
@@ -137,6 +161,11 @@ label.var:hover{
    <h1>Children’s Heart Allograft Risk and Transplantation Index 🫀 (C-HART)</h1>
     <p>1-year mortality risk calculator for pediatric heart transplant using donor, recipient, and center factors</p>
     <p>Check the boxes that apply, enter <span class="mono">meld_xi</span>, then click <b>Calculate</b>.</p>
+<div class="tabs" role="tablist" aria-label="Time horizon tabs">
+  <button class="tab active" id="tab-1y" type="button" onclick="setModel('1y')">1-year (Home)</button>
+  <button class="tab" id="tab-90d" type="button" onclick="setModel('90d')">90-day</button>
+  <button class="tab" id="tab-3y" type="button" onclick="setModel('3y')">3-year</button>
+</div>
 
     <div class="grid">
       <!-- Inputs -->
@@ -203,7 +232,10 @@ label.var:hover{
 
   <script>
     // Coefficients (binary vars use checkbox; meld_xi uses numeric input)
-   const MODEL = [
+   const MODELS = {
+     "1y"; {
+     name: "1-year mortality",
+       model: [
   { key: "CENTER_VOL_5",        label: "Center volume 2–4 transplants/year",                          coef:  3.201134439, type: "binary" },
   { key: "CENTER_VOL_12",       label: "Center volume ≥12 transplants/year",                           coef: -2.270437723, type: "binary" },
 
@@ -249,7 +281,8 @@ label.var:hover{
     const catOut = document.getElementById("catOut");
     const formulaOut = document.getElementById("formulaOut");
     const meldInput = document.getElementById("meld_xi");
-
+let ACTIVE_KEY = "1y";
+let MODEL = MODELS[ACTIVE_KEY].model;
     // Build checkbox UI
 function buildUI() {
   varsDiv.innerHTML = "";
@@ -337,7 +370,20 @@ function closeKM() {
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") closeKM();
 });
+function setModel(key) {
+  ACTIVE_KEY = key;
+  MODEL = MODELS[ACTIVE_KEY].model;
 
+  // tab UI
+  document.querySelectorAll(".tab").forEach(btn => btn.classList.remove("active"));
+  const tabId = key === "1y" ? "tab-1y" : key === "90d" ? "tab-90d" : "tab-3y";
+  document.getElementById(tabId).classList.add("active");
+
+  // reset outputs + rebuild UI
+  scoreOut.textContent = "—";
+  catOut.textContent = "—";
+  buildUI();
+}
     buildUI();
   </script>
 </body>
