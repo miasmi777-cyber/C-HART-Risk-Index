@@ -127,7 +127,7 @@
       <div class="card">
         <div class="section-title">Result</div>
         <div class="result">
-          <div class="pill">score10</div>
+          <div class="pill">1-year mortality risk</div>
           <div class="big" id="scoreOut">—</div>
 
           <div class="pill">Category</div>
@@ -154,31 +154,47 @@
 
   <script>
     // Coefficients (binary vars use checkbox; meld_xi uses numeric input)
-    const MODEL = [
-      { key: "CENTER_VOL_5",       coef:  3.201134439, type: "binary" },
-      { key: "CENTER_VOL_12",      coef: -2.270437723, type: "binary" },
-      { key: "age1",               coef:  3.735670653, type: "binary" },
-      { key: "age11_13",           coef: -6.347318681, type: "binary" },
-      { key: "age5_6",             coef:  5.649489698, type: "binary" },
-      { key: "dage22plus",         coef:  4.376786359, type: "binary" },
-      { key: "cod_999",            coef:  5.253360367, type: "binary" },
-      { key: "HGT_RATIO_HIGH",     coef:  3.558994433, type: "binary" },
-      { key: "DIAG_nosurg_CHD",    coef:  6.441370672, type: "binary" },
-      { key: "DIAG_surg_CHD",      coef: 12.0072624,   type: "binary" },
-      { key: "medicaid",           coef:  4.43259163,  type: "binary" },
-      { key: "IV_THERAPY_INF",     coef:  2.97083738,  type: "binary" },
-      { key: "hawai_pac_ind_alask",coef:  8.335493527, type: "binary" },
-      { key: "vad_3_4",            coef:  6.824203533, type: "binary" },
-      { key: "y_ventilator",       coef:  3.564940276, type: "binary" },
-      { key: "y_ecmo",             coef:  8.121272772, type: "binary" },
-      { key: "meld_xi",            coef:  0.397523026, type: "numeric" },
-      { key: "y_steroids",         coef:  3.975485211, type: "binary" },
-      { key: "hispanic",           coef: -3.887255496, type: "binary" },
-      { key: "lt3_albumin",        coef:  2.570872888, type: "binary" },
-      { key: "eGFR_TRR_LE55",      coef:  7.554048212, type: "binary" },
-      { key: "INHALED_NO_TRR",     coef: 11.32158922,  type: "binary" }
-    ];
+   const MODEL = [
+  { key: "CENTER_VOL_5",        label: "Center volume 2–4 transplants/year",                          coef:  3.201134439, type: "binary" },
+  { key: "CENTER_VOL_12",       label: "Center volume ≥12 transplants/year",                           coef: -2.270437723, type: "binary" },
 
+  { key: "age1",                label: "Recipient age <2 years",                                       coef:  3.735670653, type: "binary" },
+  { key: "age11_13",            label: "Recipient age 11–13 years",                                    coef: -6.347318681, type: "binary" },
+  { key: "age5_6",              label: "Recipient age 5–6 years",                                      coef:  5.649489698, type: "binary" },
+
+  { key: "dage22plus",          label: "Donor age ≥22 years",                                          coef:  4.376786359, type: "binary" },
+
+  { key: "cod_999",             label: "Donor cause of death code = 999 (other/unknown)",             coef:  5.253360367, type: "binary" },
+
+  { key: "HGT_RATIO_HIGH",      label: "Donor/recipient height ratio >1.3",                            coef:  3.558994433, type: "binary" },
+
+  { key: "DIAG_nosurg_CHD",     label: "Congenital heart disease (non-surgical)",                     coef:  6.441370672, type: "binary" },
+  { key: "DIAG_surg_CHD",       label: "Congenital heart disease (surgical)",                         coef: 12.0072624,   type: "binary" },
+
+  { key: "medicaid",            label: "Medicaid insurance",                                           coef:  4.43259163,  type: "binary" },
+
+  { key: "IV_THERAPY_INF",      label: "IV drug–related infection",                                    coef:  2.97083738,  type: "binary" },
+
+  { key: "hawai_pac_ind_alask", label: "Native Hawaiian/Pacific Islander or American Indian/Alaska Native", coef: 8.335493527, type: "binary" },
+
+  { key: "vad_3_4",             label: "VAD support (device type 3 or 4)",                             coef:  6.824203533, type: "binary" },
+
+  { key: "y_ventilator",        label: "Mechanical ventilation at transplant",                         coef:  3.564940276, type: "binary" },
+
+  { key: "y_ecmo",              label: "ECMO at transplant",                                           coef:  8.121272772, type: "binary" },
+
+  { key: "meld_xi",             label: "MELD-XI (numeric)",                                            coef:  0.397523026, type: "numeric" },
+
+  { key: "y_steroids",          label: "Chronic steroid use",                                          coef:  3.975485211, type: "binary" },
+
+  { key: "hispanic",            label: "Hispanic ethnicity",                                           coef: -3.887255496, type: "binary" },
+
+  { key: "lt3_albumin",         label: "Albumin ≤3 g/dL",                                              coef:  2.570872888, type: "binary" },
+
+  { key: "eGFR_TRR_LE55",       label: "eGFR ≤55 mL/min/1.73m²",                                       coef:  7.554048212, type: "binary" },
+
+  { key: "INHALED_NO_TRR",      label: "Inhaled nitric oxide (INHALED_NO_TRR)",                        coef: 11.32158922,  type: "binary" }
+];
     const varsDiv = document.getElementById("vars");
     const scoreOut = document.getElementById("scoreOut");
     const catOut = document.getElementById("catOut");
@@ -194,12 +210,13 @@
         label.className = "var";
         label.htmlFor = id;
         label.innerHTML = `
-          <input id="${id}" type="checkbox" />
-          <div>
-            <div class="name mono">${v.key}</div>
-            <div class="coef">coef: ${v.coef}</div>
-          </div>
-        `;
+         label.innerHTML = `
+  <input id="${id}" type="checkbox" />
+  <div>
+    <div class="name">${v.label}</div>
+    <div class="coef mono">${v.key} • coef: ${v.coef}</div>
+  </div>
+`;
         varsDiv.appendChild(label);
       });
       formulaOut.textContent = writtenFormula();
@@ -213,7 +230,7 @@
         return `${sign}${mag}*(${v.key})`;
       });
       // Remove leading " + "
-      return ("score10 =" + terms.join("")).replace("score10 = + ", "score10 = ");
+      return ("1-year mortality risk =" + terms.join("")).replace("1-year mortality risk = + ", "1-year mortality risk = ");
     }
 
     function getBinaryValue(key) {
