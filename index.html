@@ -242,7 +242,7 @@ label.var:hover{
    C-HART risk calculators
    Tabs: 90-day, 1-year, 3-year
    ============================ */
-
+document.addEventListener("DOMContentLoaded", () => {
 // ---- MODELS (use your 1y descriptors exactly as provided) ----
 const MODELS = {
   "1y": {
@@ -351,129 +351,131 @@ let ACTIVE_KEY = "1y";
 let MODEL = MODELS[ACTIVE_KEY].model;
 
 // ---- DOM refs ----
-const varsDiv = document.getElementById("vars");
-const scoreOut = document.getElementById("scoreOut");
-const catOut = document.getElementById("catOut");
-const formulaOut = document.getElementById("formulaOut");
-const meldInput = document.getElementById("meld_xi");
-const kmThumb = document.getElementById("kmThumb");
-const kmModalImg = document.getElementById("kmModalImg");
-   const riskTitleEl = document.getElementById("riskTitle");
-const riskHeaderEl = document.getElementById("riskHeader"); // only if you added it
-
-// If you add id="riskTitle" to the pill, this will auto-update the pill title on tab switch.
-const riskTitleEl = document.getElementById("riskTitle");
-
-// ---- UI builders ----
-function buildUI() {
-  varsDiv.innerHTML = "";
-
-  MODEL.filter(v => v.type === "binary").forEach(v => {
-    const id = `chk_${v.key}`;
-    const row = document.createElement("label");
-    row.className = "var";
-    row.htmlFor = id;
-
-    row.innerHTML = `
-      <input id="${id}" type="checkbox" />
-      <div>
-        <div class="name">${v.label}</div>
-        <div class="coef mono">${v.key} • coef: ${v.coef}</div>
-      </div>
-    `;
-
-    varsDiv.appendChild(row);
-  });
-
-  formulaOut.textContent = writtenFormula();
-}
-
-function writtenFormula() {
-  const title = MODELS[ACTIVE_KEY].title;
-  const terms = MODEL.map(v => {
-    const sign = v.coef < 0 ? " − " : " + ";
-    const mag = Math.abs(v.coef);
-    return `${sign}${mag}*(${v.key})`;
-  });
-  return (`${title} =` + terms.join("")).replace(`${title} = + `, `${title} = `);
-}
-
-function getBinaryValue(key) {
-  const el = document.getElementById(`chk_${key}`);
-  return el && el.checked ? 1 : 0;
-}
-
-function calculate() {
-  const meld = Number(meldInput.value);
-  if (!Number.isFinite(meld)) {
-    alert("Please enter a valid numeric meld_xi value.");
-    return;
+ const varsDiv     = document.getElementById("vars");
+  const scoreOut    = document.getElementById("scoreOut");
+  const catOut      = document.getElementById("catOut");
+  const formulaOut  = document.getElementById("formulaOut");
+  const meldInput   = document.getElementById("meld_xi");
+  const riskTitleEl = document.getElementById("riskTitle"); // add id in HTML if you want auto title swap
+  const kmThumb     = document.getElementById("kmThumb");
+  const kmModalImg  = document.getElementById("kmModalImg");
+function currentModel() {
+    return MODELS[ACTIVE_KEY].model;
   }
 
-  let score = 0;
-  for (const v of MODEL) {
-    if (v.type === "binary") score += v.coef * getBinaryValue(v.key);
-    else score += v.coef * meld;
+  function writtenFormula() {
+    const title = MODELS[ACTIVE_KEY].title;
+    const terms = currentModel().map(v => {
+      const sign = v.coef < 0 ? " − " : " + ";
+      const mag = Math.abs(v.coef);
+      return `${sign}${mag}*(${v.key})`;
+    });
+    return (`${title} =` + terms.join("")).replace(`${title} = + `, `${title} = `);
   }
 
-  scoreOut.textContent = score.toFixed(3);
-  catOut.textContent = MODELS[ACTIVE_KEY].categorize(score);
-}
+  function buildUI() {
+    if (!varsDiv) return;
+    varsDiv.innerHTML = "";
 
-function resetAll() {
-  MODEL.filter(v => v.type === "binary").forEach(v => {
-    const el = document.getElementById(`chk_${v.key}`);
-    if (el) el.checked = false;
+    currentModel().filter(v => v.type === "binary").forEach(v => {
+      const id = `chk_${v.key}`;
+      const row = document.createElement("label");
+      row.className = "var";
+      row.htmlFor = id;
+      row.innerHTML = `
+        <input id="${id}" type="checkbox" />
+        <div>
+          <div class="name">${v.label}</div>
+          <div class="coef mono">${v.key} • coef: ${v.coef}</div>
+        </div>
+      `;
+      varsDiv.appendChild(row);
+    });
+
+    if (formulaOut) formulaOut.textContent = writtenFormula();
+  }
+
+  function getBinaryValue(key) {
+    const el = document.getElementById(`chk_${key}`);
+    return el && el.checked ? 1 : 0;
+  }
+
+  function calculate() {
+    const meld = Number(meldInput?.value);
+    if (!Number.isFinite(meld)) {
+      alert("Please enter a valid numeric meld_xi value.");
+      return;
+    }
+
+    let score = 0;
+    for (const v of currentModel()) {
+      if (v.type === "binary") score += v.coef * getBinaryValue(v.key);
+      else score += v.coef * meld;
+    }
+
+    if (scoreOut) scoreOut.textContent = score.toFixed(3);
+    if (catOut) catOut.textContent = MODELS[ACTIVE_KEY].categorize(score);
+  }
+
+  function resetAll() {
+    currentModel().filter(v => v.type === "binary").forEach(v => {
+      const el = document.getElementById(`chk_${v.key}`);
+      if (el) el.checked = false;
+    });
+    if (meldInput) meldInput.value = "";
+    if (scoreOut) scoreOut.textContent = "—";
+    if (catOut) catOut.textContent = "—";
+  }
+
+  // Make functions global so your onclick handlers work
+  window.setModel = function(key) {
+    ACTIVE_KEY = key;
+
+    // tabs UI
+    document.querySelectorAll(".tab").forEach(btn => btn.classList.remove("active"));
+    const tabId = key === "1y" ? "tab-1y" : key === "90d" ? "tab-90d" : "tab-3y";
+    const tabEl = document.getElementById(tabId);
+    if (tabEl) tabEl.classList.add("active");
+
+    // title pill
+    const newTitle = MODELS[ACTIVE_KEY].title;
+    if (riskTitleEl) riskTitleEl.textContent = newTitle;
+
+    // swap KM images
+    const src = MODELS[ACTIVE_KEY].kmSrc;
+    if (kmThumb && src) kmThumb.src = src;
+    if (kmModalImg && src) kmModalImg.src = src;
+
+    // reset outputs and rebuild
+    if (scoreOut) scoreOut.textContent = "—";
+    if (catOut) catOut.textContent = "—";
+    buildUI();
+  };
+
+  window.openKM = function() {
+    const modal = document.getElementById("kmModal");
+    if (modal && kmModalImg && kmThumb) kmModalImg.src = kmThumb.src; // always mirror thumbnail
+    if (modal) modal.style.display = "flex";
+  };
+
+  window.closeKM = function() {
+    const modal = document.getElementById("kmModal");
+    if (modal) modal.style.display = "none";
+  };
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") window.closeKM();
   });
-  meldInput.value = "";
-  scoreOut.textContent = "—";
-  catOut.textContent = "—";
-}
 
-// ---- Tabs ----
-function setModel(key) {
-  ACTIVE_KEY = key;
-  MODEL = MODELS[ACTIVE_KEY].model;
-  const src = MODELS[ACTIVE_KEY].kmSrc;
-if (kmThumb && src) kmThumb.src = src;
-if (kmModalImg && src) kmModalImg.src = src;
-const newTitle = MODELS[ACTIVE_KEY].title;
-if (riskTitleEl) riskTitleEl.textContent = newTitle;
-if (riskHeaderEl) riskHeaderEl.textContent = newTitle; // only if you added it
-  document.querySelectorAll(".tab").forEach(btn => btn.classList.remove("active"));
-  const tabId = key === "1y" ? "tab-1y" : key === "90d" ? "tab-90d" : "tab-3y";
-  const tabEl = document.getElementById(tabId);
-  if (tabEl) tabEl.classList.add("active");
+  // buttons
+  const calcBtn = document.getElementById("calcBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  if (calcBtn) calcBtn.addEventListener("click", calculate);
+  if (resetBtn) resetBtn.addEventListener("click", resetAll);
 
-  if (riskTitleEl) riskTitleEl.textContent = MODELS[ACTIVE_KEY].title;
-
-  scoreOut.textContent = "—";
-  catOut.textContent = "—";
+  // initial render
   buildUI();
-}
-
-// ---- KM Modal ----
-function openKM() {
-  const m = document.getElementById("kmModal");
-  if (m) m.style.display = "flex";
-}
-
-function closeKM() {
-  const m = document.getElementById("kmModal");
-  if (m) m.style.display = "none";
-}
-
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape") closeKM();
 });
-
-// ---- Wire up buttons ----
-document.getElementById("calcBtn").addEventListener("click", calculate);
-document.getElementById("resetBtn").addEventListener("click", resetAll);
-
-// ---- Initial render ----
-buildUI();
 </script>
-
 </body>
 </html>
