@@ -205,10 +205,10 @@ label.var:hover{
         <div class="pill" id="riskTitle">1-year mortality risk</div>
           <div class="big" id="scoreOut">—</div>
           <div class="pill">Category</div>
-          <div class="pill">Relative risk</div>
-<div id="rrOut" style="font-size:16px; font-weight:600;">—</div>
           <div style="font-size:18px; font-weight:700;" id="catOut">—</div>
           <div style="margin-top:12px;">
+               <div class="pill">Relative risk</div>
+<div id="rrOut" style="font-size:16px; font-weight:600;">—</div>
   <div style="margin-top:12px;">
   <img
     id="kmThumb"
@@ -252,7 +252,7 @@ const MODELS = {
      relativeRisk: {
     "Low": "Reference = 1",
     "Moderate": "RR 2.9",
-    "High ⚠️": "RR 5.0,
+    "High ⚠️": "RR 5.0",
     "Very High 🚩": "RR 13.3"
     },
     model: [
@@ -293,7 +293,7 @@ const MODELS = {
     relativeRisk: {
     "Low": "Reference = 1",
     "Moderate": "RR 3.4",
-    "High ⚠️": "RR 7.9,
+    "High ⚠️": "RR 7.9",
     "Very High 🚩": "RR 30.6"
     },
     model: [
@@ -327,7 +327,7 @@ const MODELS = {
      relativeRisk: {
     "Low": "Reference = 1",
     "Moderate": "RR 2.2",
-    "High ⚠️": "RR 3.1,
+    "High ⚠️": "RR 3.1",
     "Very High 🚩": "RR 5.4"
     },
     model: [
@@ -425,14 +425,6 @@ function currentModel() {
     if (!Number.isFinite(meld)) {
       alert("Please enter a valid numeric meld_xi value.");
       return;
-      const category = MODELS[ACTIVE_KEY].categorize(score);
-
-if (catOut) catOut.textContent = category;
-
-const rrMap = MODELS[ACTIVE_KEY].relativeRisk;
-if (rrOut && rrMap && rrMap[category]) {
-  rrOut.textContent = rrMap[category];
-}
     }
 
     let score = 0;
@@ -441,8 +433,13 @@ if (rrOut && rrMap && rrMap[category]) {
       else score += v.coef * meld;
     }
 
+    const category = MODELS[ACTIVE_KEY].categorize(score);
+
     if (scoreOut) scoreOut.textContent = score.toFixed(3);
-    if (catOut) catOut.textContent = MODELS[ACTIVE_KEY].categorize(score);
+    if (catOut) catOut.textContent = category;
+
+    const rrMap = MODELS[ACTIVE_KEY].relativeRisk;
+    if (rrOut) rrOut.textContent = (rrMap && rrMap[category]) ? rrMap[category] : "—";
   }
 
   function resetAll() {
@@ -453,36 +450,35 @@ if (rrOut && rrMap && rrMap[category]) {
     if (meldInput) meldInput.value = "";
     if (scoreOut) scoreOut.textContent = "—";
     if (catOut) catOut.textContent = "—";
+    if (rrOut) rrOut.textContent = "—";
   }
 
-  // Make functions global so your onclick handlers work
+  // Global for onclick usage
   window.setModel = function(key) {
     ACTIVE_KEY = key;
 
-    // tabs UI
     document.querySelectorAll(".tab").forEach(btn => btn.classList.remove("active"));
     const tabId = key === "1y" ? "tab-1y" : key === "90d" ? "tab-90d" : "tab-3y";
     const tabEl = document.getElementById(tabId);
     if (tabEl) tabEl.classList.add("active");
 
-    // title pill
     const newTitle = MODELS[ACTIVE_KEY].title;
     if (riskTitleEl) riskTitleEl.textContent = newTitle;
 
-    // swap KM images
     const src = MODELS[ACTIVE_KEY].kmSrc;
     if (kmThumb && src) kmThumb.src = src;
     if (kmModalImg && src) kmModalImg.src = src;
-if (rrOut) rrOut.textContent = "—";
-    // reset outputs and rebuild
+
     if (scoreOut) scoreOut.textContent = "—";
     if (catOut) catOut.textContent = "—";
+    if (rrOut) rrOut.textContent = "—";
+
     buildUI();
   };
 
   window.openKM = function() {
     const modal = document.getElementById("kmModal");
-    if (modal && kmModalImg && kmThumb) kmModalImg.src = kmThumb.src; // always mirror thumbnail
+    if (modal && kmModalImg && kmThumb) kmModalImg.src = kmThumb.src;
     if (modal) modal.style.display = "flex";
   };
 
@@ -495,13 +491,11 @@ if (rrOut) rrOut.textContent = "—";
     if (e.key === "Escape") window.closeKM();
   });
 
-  // buttons
   const calcBtn = document.getElementById("calcBtn");
   const resetBtn = document.getElementById("resetBtn");
   if (calcBtn) calcBtn.addEventListener("click", calculate);
   if (resetBtn) resetBtn.addEventListener("click", resetAll);
 
-  // initial render
   buildUI();
 });
 </script>
